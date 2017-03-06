@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-# Copyright 2013 Abram Hindle
+# Copyright 2013 Abram Hindle, J Maxwell Douglas
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# Spent some time on the flask site reading through the jsonify function.
+# Eventually I decided to use it rather than the 'dumps' function.
+# http://flask.pocoo.org/docs/0.12/api/#flask.json.jsonify
+#
 # You can start this by executing it in python:
 # python server.py
 #
@@ -22,7 +26,7 @@
 
 
 import flask
-from flask import Flask, request
+from flask import Flask, request, redirect, jsonify
 import json
 app = Flask(__name__)
 app.debug = True
@@ -55,7 +59,7 @@ class World:
         return self.space
 
 # you can test your webservice from the commandline
-# curl -v   -H "Content-Type: appication/json" -X PUT http://127.0.0.1:5000/entity/X -d '{"x":1,"y":1}' 
+# curl -v   -H "Content-Type: application/json" -X PUT http://127.0.0.1:5000/entity/X -d '{"x":1,"y":1}'
 
 myWorld = World()          
 
@@ -74,27 +78,45 @@ def flask_post_json():
 @app.route("/")
 def hello():
     '''Return something coherent here.. perhaps redirect to /static/index.html '''
-    return None
+    return redirect('static/index.html')
 
 @app.route("/entity/<entity>", methods=['POST','PUT'])
 def update(entity):
     '''update the entities via this interface'''
-    return None
+    # http://flask.pocoo.org/docs/0.12/api/#flask.json.jsonify
+    the_entities = flask_post_json()
+    if request.method == 'POST':
+        myWorld.set(entity, the_entities)
+    elif request.method == 'PUT':
+        for key, value in the_entities.iteritems():
+            myWorld.update(entity, key, value)
 
-@app.route("/world", methods=['POST','GET'])    
+    return flask.jsonify(myWorld.get(entity))
+
+@app.route("/world", methods=['POST','GET'])
 def world():
     '''you should probably return the world here'''
-    return None
+    if request.method == 'GET':
+        return flask.jsonify(myWorld.world())
+    elif request.method == 'POST':
+        return flask.jsonify(myWorld.world())
+
+    # I can't do the following (like in update()) because I am setting my world to null:
+    # the_entities = flask_post_json()
+    # for key, value in the_entities.iteritems():
+    #     myWorld.set(key, value)
+    # return flask.jsonify(myWorld.world())
 
 @app.route("/entity/<entity>")    
 def get_entity(entity):
     '''This is the GET version of the entity interface, return a representation of the entity'''
-    return None
+    return flask.jsonify(myWorld.get(entity))
 
 @app.route("/clear", methods=['POST','GET'])
 def clear():
     '''Clear the world out!'''
-    return None
+    myWorld.clear()
+    return flask.jsonify(myWorld.world())
 
 if __name__ == "__main__":
     app.run()
